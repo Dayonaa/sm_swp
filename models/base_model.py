@@ -106,7 +106,7 @@ class BaseModel(torch.nn.Module):
         else:
             #network.load_state_dict(torch.load(save_path,weights_only=False))
             try:
-                network.load_state_dict(torch.load(save_path, map_location=torch.device("cpu")),weights_only=False)
+                network.load_state_dict(torch.load(save_path, map_location=torch.device("cpu"),weights_only=False))
             except:   
                 pretrained_dict = torch.load(save_path, map_location=torch.device("cpu"),weights_only=False)                
                 model_dict = network.state_dict()
