@@ -60,17 +60,10 @@ class fsModel(BaseModel):
         self.netG.to(device)
 
         # Id network
-        from models.arcface_models import ResNet  # pastikan ini benar
-        self.netArc = ResNet()  # atau arsitektur sesuai checkpoint-nya
-        self.netArc.to(device)
-
-        # Load hanya state_dict, bukan objek
-        checkpoint = torch.load(opt.Arc_path, map_location=device)
-        if 'state_dict' in checkpoint:
-            self.netArc.load_state_dict(checkpoint['state_dict'])
-        else:
-            self.netArc.load_state_dict(checkpoint)
-
+        netArc_checkpoint = opt.Arc_path
+        netArc_checkpoint = torch.load(netArc_checkpoint, map_location=torch.device("cpu"))
+        self.netArc = netArc_checkpoint
+        self.netArc = self.netArc.to(device)
         self.netArc.eval()
 
         if not self.isTrain:
@@ -245,5 +238,3 @@ class fsModel(BaseModel):
         if self.opt.verbose:
             print('update learning rate: %f -> %f' % (self.old_lr, lr))
         self.old_lr = lr
-
-
