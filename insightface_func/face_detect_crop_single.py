@@ -28,7 +28,7 @@ Face.__new__.__defaults__ = (None, ) * len(Face._fields)
 
 
 class Face_detect_crop:
-    def __init__(self, name, root='/content/sm_swp/insightface_func/models/'):
+    def __init__(self, name, root='~/.insightface_func/models'):
         self.models = {}
         root = os.path.expanduser(root)
         onnx_files = glob.glob(osp.join(root, name, '*.onnx'))
