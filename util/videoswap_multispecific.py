@@ -55,7 +55,7 @@ def video_swap(video_path, target_id_norm_list,source_specific_id_nonorm_list,id
         net = BiSeNet(n_classes=n_classes)
         net.cuda()
         save_pth = os.path.join('./parsing_model/checkpoint', '79999_iter.pth')
-        net.load_state_dict(torch.load(save_pth))
+        net.load_state_dict(torch.load(save_pth,weights_only=False))
         net.eval()
     else:
         net =None

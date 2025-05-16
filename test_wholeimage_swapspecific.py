@@ -130,7 +130,7 @@ if __name__ == '__main__':
         net = BiSeNet(n_classes=n_classes)
         net.cuda()
         save_pth = os.path.join('./parsing_model/checkpoint', '79999_iter.pth')
-        net.load_state_dict(torch.load(save_pth))
+        net.load_state_dict(torch.load(save_pth, weights_only=False))
         net.eval()
     else:
         net =None
