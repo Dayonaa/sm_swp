@@ -18,7 +18,7 @@ Face.__new__.__defaults__ = (None,) * len(Face._fields)
 class Face_detect_crop:
     def __init__(self, name='antelopev2', root='/content/sm_swp/insightface_func/models'):
         self.models = {}
-        model = model_zoo.get_model(name, root=root)
+        model = model_zoo.get_model(name)
         model.prepare(ctx_id=0)  # Kamu bisa pindahkan ke prepare() jika mau fleksibel
         self.models[model.taskname] = model
         assert 'detection' in self.models
