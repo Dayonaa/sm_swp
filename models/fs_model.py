@@ -60,9 +60,17 @@ class fsModel(BaseModel):
         self.netG.to(device)
 
         # Id network
+        from models.arcface_models import ResNet  # pastikan path-nya sesuai dengan struktur project
+        from torch.serialization import add_safe_globals
+
+        # ⛑️ Daftarkan ResNet sebagai kelas yang aman untuk di-unpickle
+        add_safe_globals([ResNet])
+
+        # 🧠 Load ArcFace checkpoint dengan aman
         netArc_checkpoint = opt.Arc_path
-        netArc_checkpoint = torch.load(netArc_checkpoint, map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),weights_only=False)
-        self.netArc = netArc_checkpoint
+        netArc = torch.load(netArc_checkpoint, map_location=torch.device("cuda"), weights_only=False)
+
+        self.netArc = netArc
         self.netArc = self.netArc.to(device)
         self.netArc.eval()
 
