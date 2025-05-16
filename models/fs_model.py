@@ -61,7 +61,7 @@ class fsModel(BaseModel):
 
         # Id network
         import torch
-        from torch.nn.modules.batchnorm.BatchNorm2d import BatchNorm2d
+        from torch.nn.modules.batchnorm import BatchNorm2d
         from torch.nn.modules.conv import Conv2d 
         from models.arcface_models import ResNet  # pastikan path ini sesuai struktur folder kamu
         from torch.serialization import add_safe_globals
