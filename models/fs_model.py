@@ -60,11 +60,12 @@ class fsModel(BaseModel):
         self.netG.to(device)
 
         # Id network
-        from models.arcface_models import ResNet  # pastikan path-nya sesuai struktur proyek
+        from models.arcface_models import ResNet 
+        from torch.nn.modules.conv import Conv2d 
         from torch.serialization import add_safe_globals
 
         # Daftarkan ResNet sebagai kelas yang aman untuk unpickle
-        add_safe_globals([ResNet])
+        add_safe_globals([ResNet,Conv2d])
 
         # Load ArcFace checkpoint dengan aman, ke device yang sudah ditentukan
         netArc_checkpoint_path = opt.Arc_path
