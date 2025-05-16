@@ -48,7 +48,7 @@ class fsModel(BaseModel):
             torch.backends.cudnn.benchmark = True
         self.isTrain = opt.isTrain
 
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:0")
 
         if opt.crop_size == 224:
             from .fs_networks import Generator_Adain_Upsample, Discriminator
@@ -60,46 +60,18 @@ class fsModel(BaseModel):
         self.netG.to(device)
 
         # Id network
-        import torch
-        from torch.nn.modules.batchnorm import BatchNorm2d
-        from torch.nn.modules.conv import Conv2d 
-        from models.arcface_models import ResNet  # pastikan path ini sesuai struktur folder kamu
-        from torch.serialization import add_safe_globals
+        from models.arcface_models import ResNet  # pastikan ini benar
+        self.netArc = ResNet()  # atau arsitektur sesuai checkpoint-nya
+        self.netArc.to(device)
 
-        # Daftarkan class ResNet sebagai safe global untuk unpickle
-        add_safe_globals([ResNet,Conv2d,BatchNorm2d])
-
-        # Path model
-        checkpoint_path = '/content/sm_swp/arcface_model/arcface_checkpoint.tar'
-
-        # Load checkpoint dengan map_location ke CUDA (atau CPU jika gak ada GPU)
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-        # Load model lengkap (bukan hanya weights)
-        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
-
-        # Biasanya checkpoint berisi dictionary, misalnya {'model': model_state_dict, 'other': ...}
-        # Kalau kamu yakin checkpoint adalah objek model langsung, bisa langsung assign
-        # Tapi biasanya simswap model checkpoint adalah dict, jadi perlu sedikit disesuaikan
-
-        # Contoh jika checkpoint dict dan ada key 'model' atau 'netArc'
-        if isinstance(checkpoint, dict):
-            # Jika key-nya 'model' atau 'netArc', sesuaikan dengan nama yang ada di checkpoint
-            if 'model' in checkpoint:
-                netArc = checkpoint['model']
-            elif 'netArc' in checkpoint:
-                netArc = checkpoint['netArc']
-            else:
-                # Jika tidak ada key tsb, coba asumsi checkpoint adalah model langsung
-                netArc = checkpoint
+        # Load hanya state_dict, bukan objek
+        checkpoint = torch.load(opt.Arc_path, map_location=device)
+        if 'state_dict' in checkpoint:
+            self.netArc.load_state_dict(checkpoint['state_dict'])
         else:
-            netArc = checkpoint
+            self.netArc.load_state_dict(checkpoint)
 
-        # Pindahkan model ke device dan set eval mode
-        netArc = netArc.to(device)
-        netArc.eval()
-
-        print("Model ArcFace berhasil dimuat dan siap digunakan di", device)
+        self.netArc.eval()
 
         if not self.isTrain:
             pretrained_path = '' if not self.isTrain else opt.load_pretrain
@@ -107,39 +79,50 @@ class fsModel(BaseModel):
             return
 
         # Discriminator network
-        use_sigmoid = True if opt.gan_mode == 'original' else False
+        if opt.gan_mode == 'original':
+            use_sigmoid = True
+        else:
+            use_sigmoid = False
         self.netD1 = Discriminator(input_nc=3, use_sigmoid=use_sigmoid)
         self.netD2 = Discriminator(input_nc=3, use_sigmoid=use_sigmoid)
         self.netD1.to(device)
         self.netD2.to(device)
 
-        self.spNorm = SpecificNorm()
+        #
+        self.spNorm =SpecificNorm()
         self.downsample = nn.AvgPool2d(3, stride=2, padding=[1, 1], count_include_pad=False)
 
-        # Load pretrained networks jika lanjut training / pretrain
+        # load networks
         if opt.continue_train or opt.load_pretrain:
             pretrained_path = '' if not self.isTrain else opt.load_pretrain
+            # print (pretrained_path)
             self.load_network(self.netG, 'G', opt.which_epoch, pretrained_path)
             self.load_network(self.netD1, 'D1', opt.which_epoch, pretrained_path)
             self.load_network(self.netD2, 'D2', opt.which_epoch, pretrained_path)
 
+
+
         if self.isTrain:
+            # define loss functions
             self.loss_filter = self.init_loss_filter(not opt.no_ganFeat_loss, not opt.no_vgg_loss)
 
             self.criterionGAN = networks.GANLoss(opt.gan_mode, tensor=self.Tensor, opt=self.opt)
             self.criterionFeat = nn.L1Loss()
             self.criterionRec = nn.L1Loss()
 
+            # Names so we can breakout loss
             self.loss_names = self.loss_filter('G_GAN', 'G_GAN_Feat', 'G_VGG', 'G_ID', 'G_Rec', 'D_GP',
-                                            'D_real', 'D_fake')
+                                               'D_real', 'D_fake')
 
-            # Optimizers
-            params_G = list(self.netG.parameters())
-            self.optimizer_G = torch.optim.Adam(params_G, lr=opt.lr, betas=(opt.beta1, 0.999))
+           # initialize optimizers
 
-            params_D = list(self.netD1.parameters()) + list(self.netD2.parameters())
-            self.optimizer_D = torch.optim.Adam(params_D, lr=opt.lr, betas=(opt.beta1, 0.999))
+            # optimizer G
+            params = list(self.netG.parameters())
+            self.optimizer_G = torch.optim.Adam(params, lr=opt.lr, betas=(opt.beta1, 0.999))
 
+            # optimizer D
+            params = list(self.netD1.parameters()) + list(self.netD2.parameters())
+            self.optimizer_D = torch.optim.Adam(params, lr=opt.lr, betas=(opt.beta1, 0.999))
 
     def _gradinet_penalty_D(self, netD, img_att, img_fake):
         # interpolate sample
