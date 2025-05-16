@@ -60,30 +60,45 @@ class fsModel(BaseModel):
         self.netG.to(device)
 
         # Id network
-        from models.arcface_models import ResNet 
+        import torch
         from torch.nn.modules.conv import Conv2d 
+        from models.arcface_models import ResNet  # pastikan path ini sesuai struktur folder kamu
         from torch.serialization import add_safe_globals
 
-        # Daftarkan ResNet sebagai kelas yang aman untuk unpickle
+        # Daftarkan class ResNet sebagai safe global untuk unpickle
         add_safe_globals([ResNet,Conv2d])
 
-        # Load ArcFace checkpoint dengan aman, ke device yang sudah ditentukan
-        netArc_checkpoint_path = opt.Arc_path
-        netArc_checkpoint = torch.load(netArc_checkpoint_path, map_location=device, weights_only=False)
+        # Path model
+        checkpoint_path = '/content/sm_swp/arcface_model/arcface_checkpoint.tar'
 
-        # Jika checkpoint dict, sesuaikan sesuai isi checkpoint (contoh asumsi ada key 'model' atau langsung model)
-        if isinstance(netArc_checkpoint, dict):
-            if 'model' in netArc_checkpoint:
-                netArc = netArc_checkpoint['model']
-            elif 'netArc' in netArc_checkpoint:
-                netArc = netArc_checkpoint['netArc']
+        # Load checkpoint dengan map_location ke CUDA (atau CPU jika gak ada GPU)
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+        # Load model lengkap (bukan hanya weights)
+        checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
+
+        # Biasanya checkpoint berisi dictionary, misalnya {'model': model_state_dict, 'other': ...}
+        # Kalau kamu yakin checkpoint adalah objek model langsung, bisa langsung assign
+        # Tapi biasanya simswap model checkpoint adalah dict, jadi perlu sedikit disesuaikan
+
+        # Contoh jika checkpoint dict dan ada key 'model' atau 'netArc'
+        if isinstance(checkpoint, dict):
+            # Jika key-nya 'model' atau 'netArc', sesuaikan dengan nama yang ada di checkpoint
+            if 'model' in checkpoint:
+                netArc = checkpoint['model']
+            elif 'netArc' in checkpoint:
+                netArc = checkpoint['netArc']
             else:
-                netArc = netArc_checkpoint  # fallback
+                # Jika tidak ada key tsb, coba asumsi checkpoint adalah model langsung
+                netArc = checkpoint
         else:
-            netArc = netArc_checkpoint
+            netArc = checkpoint
 
-        self.netArc = netArc.to(device)
-        self.netArc.eval()
+        # Pindahkan model ke device dan set eval mode
+        netArc = netArc.to(device)
+        netArc.eval()
+
+        print("Model ArcFace berhasil dimuat dan siap digunakan di", device)
 
         if not self.isTrain:
             pretrained_path = '' if not self.isTrain else opt.load_pretrain
